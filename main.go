@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
 	"github.com/google/uuid"
 	"github.com/lesismal/nbio/nbhttp/websocket"
 	"github.com/rs/cors"
@@ -119,6 +120,7 @@ func Run() error {
 
 	// Setup HTTP router
 	r := chi.NewRouter()
+	r.Use(middleware.DefaultLogger)
 	r.Get("/signalk/v1/stream", func(w http.ResponseWriter, r *http.Request) {
 		u := newUpgrader()
 		_, err := u.Upgrade(w, r, nil)
@@ -133,7 +135,12 @@ func Run() error {
 		r.Get("/*", func(w http.ResponseWriter, r *http.Request) {
 			pathStr, _ := strings.CutPrefix(r.URL.String(), baseAPI)
 			path := signalk.CreatePath(strings.Split(pathStr, "/")...)
-			w.Write([]byte(path.String()))
+			value, err := signalk.NewTraverser(root).Next(path)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			json.NewEncoder(w).Encode(value)
 		})
 	})
 
@@ -154,10 +161,6 @@ func Run() error {
 		}
 		json.NewEncoder(w).Encode(&delta)
 	})
-
-	r.Handle("/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		json.NewEncoder(w).Encode(&root)
-	}))
 
 	http.ListenAndServe(":3000", cors.AllowAll().Handler(r))
 	return nil

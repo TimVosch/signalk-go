@@ -13,22 +13,22 @@ import (
 func TestVesselDataTreeShouldAddLeafOnCorrectPath(t *testing.T) {
 	tree := signalk.NewVesselDataTree()
 
+	path1 := signalk.CreatePath("a.b.c")
 	value1 := &signalk.VesselDataEntry{
-		Path:      signalk.CreatePath("a.b.c"),
 		SourceRef: "test",
 		Value:     signalk.DataValueFromNumerical(15),
 		Timestamp: time.Now(),
 	}
+	path2 := signalk.CreatePath("a.b.d")
 	value2 := &signalk.VesselDataEntry{
-		Path:      signalk.CreatePath("a.b.d"),
 		SourceRef: "test",
 		Value:     signalk.DataValueFromNumerical(55),
 		Timestamp: time.Now(),
 	}
-	tree.Add(value1.Path, value1)
-	tree.Add(value2.Path, value2)
+	tree.Add(path1, value1)
+	tree.Add(path2, value2)
 
-	entry, retTree, err := tree.Get(value1.Path)
+	entry, retTree, err := tree.Get(path1)
 	require.NoError(t, err)
 	assert.Nil(t, retTree)
 	assert.Equal(t, value1, entry)

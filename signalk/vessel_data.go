@@ -3,6 +3,7 @@ package signalk
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"time"
 )
 
@@ -59,6 +60,7 @@ func (t *VesselDataTree) Add(path Path, entry *VesselDataEntry) error {
 }
 
 func (t *VesselDataTree) Get(path Path) (*VesselDataEntry, *VesselDataTree, error) {
+	fmt.Printf("VesselDataTree getting: %s\n", path)
 	next, rest := path.Pop()
 
 	// If there is no next key then we're at the end of the path
@@ -73,7 +75,7 @@ func (t *VesselDataTree) Get(path Path) (*VesselDataEntry, *VesselDataTree, erro
 
 	child, ok := t.children[next]
 	if !ok {
-		return nil, nil, ErrNoSuchKey
+		return nil, nil, fmt.Errorf("%w: '%s' not found in vessel values", ErrNoSuchKey, next)
 	}
 	return child.Get(rest)
 }

@@ -51,7 +51,7 @@ func VesselIDFromString(str string) (VesselID, error) {
 	if mmsi, hasMMSI := strings.CutPrefix(str, vesselIDMMSIPrefix); hasMMSI {
 		return VesselIDFromMMSI(mmsi), nil
 	}
-	if uuid, hasUUID := strings.CutPrefix(str, vesselIDMMSIPrefix); hasUUID {
+	if uuid, hasUUID := strings.CutPrefix(str, vesselIDUUIDPrefix); hasUUID {
 		return VesselIDFromUUIDString(uuid)
 	}
 	return VesselID{}, fmt.Errorf("%w: %s", ErrVesselIDInvalid, str)

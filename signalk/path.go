@@ -9,6 +9,10 @@ type Path struct {
 	values []string
 }
 
+func (path Path) Empty() bool {
+	return len(path.values) == 0
+}
+
 func CreatePath(values ...string) Path {
 	path := Path{
 		values: make([]string, 0, len(values)),
