@@ -5,60 +5,48 @@ import (
 	"strings"
 )
 
-type Path struct {
-	values []string
-}
+type Path []string
 
-func (path Path) Empty() bool {
-	return len(path.values) == 0
-}
-
-func CreatePath(values ...string) Path {
-	path := Path{
-		values: make([]string, 0, len(values)),
-	}
-	for _, part := range values {
-		path = path.Child(part)
+func CreatePath(pathStrings ...string) Path {
+	path := make(Path, 0)
+	for _, pathString := range pathStrings {
+		pathString = strings.Trim(pathString, " \t")
+		for _, pathPart := range strings.Split(pathString, ".") {
+			if pathPart == "" {
+				continue
+			}
+			path = append(path, strings.Trim(pathPart, " \t"))
+		}
 	}
 	return path
 }
 
 func (path Path) String() string {
-	return strings.Join(path.values, ".")
+	return strings.Join(path, ".")
+}
+
+func (path Path) IsEmpty() bool {
+	return len(path) == 0
+}
+
+func (path Path) Append(other Path) Path {
+	return append(path, other...)
+}
+
+func (path Path) Prepend(other Path) Path {
+	return append(other, path...)
+}
+
+func (path Path) FirstOut() (Path, Path) {
+	if path.IsEmpty() {
+		return Path{}, Path{}
+	}
+	if len(path) < 2 {
+		return path[:1], Path{}
+	}
+	return path[:1], path[1:]
 }
 
 func (path Path) MarshalJSON() ([]byte, error) {
 	return json.Marshal(path.String())
-}
-
-func (path Path) Pop() (string, Path) {
-	if len(path.values) == 0 {
-		return "", Path{}
-	}
-	next := path.values[0]
-	if len(path.values) == 1 {
-		return next, Path{}
-	}
-	path.values = path.values[1:]
-	return next, path
-}
-
-func (path Path) Child(value string) Path {
-	for _, part := range strings.Split(value, ".") {
-		path = path.addSingleChild(part)
-	}
-	return path
-}
-
-func (path Path) addSingleChild(value string) Path {
-	trimmed := strings.Trim(value, " \t")
-	if trimmed == "" {
-		return path
-	}
-	path.values = append(path.values, trimmed)
-	return path
-}
-
-func (path Path) Parts() []string {
-	return path.values
 }

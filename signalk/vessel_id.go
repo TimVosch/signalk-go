@@ -1,7 +1,6 @@
 package signalk
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -9,83 +8,73 @@ import (
 	"github.com/google/uuid"
 )
 
+type VesselIDType uint8
+
 const (
-	vesselIDUUIDPrefix = "urn:mrn:signalk:uuid:"
-	vesselIDMMSIPrefix = "urn:mrn:imo:mmsi:"
+	VesselMMSI VesselIDType = iota
+	VesselUUID
+	VesselURL
+
+	// Prefixes
+	VesselIDMMSIPrefix string = "urn:mrn:imo:mmsi:"
+	VesselIDUUIDPrefix string = "urn:mrn:signalk:uuid:"
 )
 
 var ErrVesselIDInvalid = errors.New("vessel ID is invalid")
 
-type VesselUUID string
-
-func (id VesselUUID) String() string {
-	if string(id) == "" {
-		return ""
+func (t VesselIDType) String() string {
+	switch t {
+	case VesselMMSI:
+		return "mmsi"
+	case VesselUUID:
+		return "uuid"
+	case VesselURL:
+		return "url"
 	}
-	return vesselIDUUIDPrefix + string(id)
-}
-
-func (id VesselUUID) MarshalJSON() ([]byte, error) {
-	return json.Marshal(id.String())
-}
-
-type VesselMMSI string
-
-func (id VesselMMSI) String() string {
-	if string(id) == "" {
-		return ""
-	}
-	return vesselIDMMSIPrefix + string(id)
-}
-
-func (id VesselMMSI) MarshalJSON() ([]byte, error) {
-	return json.Marshal(id.String())
+	return ""
 }
 
 type VesselID struct {
-	UUID VesselUUID
-	MMSI VesselMMSI
-}
-
-func VesselIDFromString(str string) (VesselID, error) {
-	if mmsi, hasMMSI := strings.CutPrefix(str, vesselIDMMSIPrefix); hasMMSI {
-		return VesselIDFromMMSI(mmsi), nil
-	}
-	if uuid, hasUUID := strings.CutPrefix(str, vesselIDUUIDPrefix); hasUUID {
-		return VesselIDFromUUIDString(uuid)
-	}
-	return VesselID{}, fmt.Errorf("%w: %s", ErrVesselIDInvalid, str)
-}
-
-func VesselIDFromUUIDString(uuidStr string) (VesselID, error) {
-	id, err := uuid.Parse(uuidStr)
-	if err != nil {
-		return VesselID{}, err
-	}
-	return VesselID{
-		UUID: VesselUUID(id.String()),
-	}, nil
-}
-
-func VesselIDFromUUID(id uuid.UUID) VesselID {
-	return VesselID{
-		UUID: VesselUUID(id.String()),
-	}
-}
-
-func VesselIDFromMMSI(mmsi string) VesselID {
-	return VesselID{
-		MMSI: VesselMMSI(mmsi),
-	}
+	typ  VesselIDType
+	mmsi string
+	uuid uuid.UUID
+	url  string
 }
 
 func (id VesselID) String() string {
-	if id.MMSI != "" {
-		return id.MMSI.String()
+	switch id.typ {
+	case VesselMMSI:
+		return VesselIDMMSIPrefix + id.mmsi
+	case VesselUUID:
+		return VesselIDUUIDPrefix + id.uuid.String()
+	case VesselURL:
+		return id.url
 	}
-	return id.UUID.String()
+	return ""
 }
 
-func (id VesselID) MarshalJSON() ([]byte, error) {
-	return json.Marshal(id.String())
+func CreateVesselUUID(uuid uuid.UUID) VesselID {
+	return VesselID{
+		typ:  VesselUUID,
+		uuid: uuid,
+	}
+}
+
+func ParseVesselID(idStr string) (VesselID, error) {
+	var id VesselID
+	if mmsi, hasMMSI := strings.CutPrefix(idStr, VesselIDMMSIPrefix); hasMMSI {
+		id.typ = VesselMMSI
+		id.mmsi = mmsi
+		return id, nil
+	}
+	if uuidStr, hasUUID := strings.CutPrefix(idStr, VesselIDUUIDPrefix); hasUUID {
+		uuid, err := uuid.Parse(uuidStr)
+		if err != nil {
+			return id, fmt.Errorf("%w: vessel uuid ('%s') is invalid", ErrVesselIDInvalid, uuidStr)
+		}
+		id.typ = VesselUUID
+		id.uuid = uuid
+		return id, nil
+	}
+	return id, fmt.Errorf("%w: id '%s' is not recognized", ErrVesselIDInvalid, idStr)
 }

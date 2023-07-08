@@ -3,165 +3,73 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"log"
-	"math/rand"
 	"net/http"
 	"os"
-	"strings"
-	"time"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/chi/v5/middleware"
 	"github.com/google/uuid"
-	"github.com/lesismal/nbio/nbhttp/websocket"
 	"github.com/rs/cors"
 
 	"signalk/signalk"
 )
 
-type SignalKHello struct {
-	Name      string    `json:"name"`
-	Version   string    `json:"version"`
-	Roles     []string  `json:"roles"`
-	Timestamp time.Time `json:"timestamp"`
-}
-
 var (
-	self signalk.Vessel
-	root signalk.FullFormat
-)
-
-func newUpgrader() *websocket.Upgrader {
-	u := websocket.NewUpgrader()
-	u.CheckOrigin = func(r *http.Request) bool { return true }
-	done := make(chan struct{})
-	u.OnMessage(func(c *websocket.Conn, mt websocket.MessageType, b []byte) {
-		log.Printf("WS Message: %v %v\n", mt, string(b))
-	})
-	u.OnOpen(func(c *websocket.Conn) {
-		log.Printf("New WS: %v\n", c.RemoteAddr())
-		hello := SignalKHello{
-			Name:      "Test server",
-			Version:   "1.0.0",
-			Roles:     []string{"master", "main"},
-			Timestamp: time.Now(),
-		}
-		jsonBytes, _ := json.Marshal(&hello)
-		c.WriteMessage(websocket.TextMessage, jsonBytes)
-
-		go func() {
-			for {
-				delta := signalk.DeltaFormat{
-					Context: signalk.CreatePath("vessels", self.ID.String()),
-					Updates: []signalk.DeltaUpdate{
-						{
-							Timestamp: time.Now(),
-							Values: []signalk.DeltaUpdateObject{
-								{
-									Path:  signalk.CreatePath("navigation", "speedOverGround"),
-									Value: signalk.DataValueFromNumerical(rand.Float64() * 10),
-								},
-							},
-						},
-					},
-				}
-				jsonBytes, err := json.Marshal(&delta)
-				if err != nil {
-					log.Printf("WS Encode error: %v\n", err)
-				}
-				c.WriteMessage(websocket.TextMessage, jsonBytes)
-
-				select {
-				case <-done:
-					return
-				case <-time.After(1 * time.Second):
-				}
-			}
-		}()
-	})
-	u.OnClose(func(c *websocket.Conn, err error) {
-		close(done)
-		log.Printf("Closed WS: %v, %s\n", c.RemoteAddr(), err)
-	})
-	return u
-}
-
-func main() {
-	if err := Run(); err != nil {
-		fmt.Fprintf(os.Stderr, "Fatal error: %v", err)
+	self = &signalk.Vessel{
+		ID: signalk.CreateVesselUUID(uuid.New()),
 	}
-}
-
-func Run() error {
-	self = signalk.CreateVessel(signalk.VesselIDFromUUID(uuid.New()))
-	// vessel := signalk.CreateVessel(signalk.VesselIDFromMMSI("123123123"))
-
-	// Add some data to vessel
-	self.Values.Add(signalk.CreatePath("navigation.speedThroughWater"), &signalk.VesselDataEntry{
-		Value:     signalk.DataValueFromNumerical(2.94),
-		Timestamp: time.Now(),
-		SourceRef: "testsource",
-	})
-	self.Values.Add(signalk.CreatePath("navigation.courseOverGround"), &signalk.VesselDataEntry{
-		Value:     signalk.DataValueFromNumerical(55),
-		Timestamp: time.Now(),
-		SourceRef: "testsource",
-	})
-
-	// Create root format
-	root = signalk.FullFormat{
-		Version: "1.0",
+	root = &signalk.Root{
+		Version: "0.0.1",
 		Self:    signalk.CreatePath("vessels", self.ID.String()),
 		Vessels: signalk.VesselList{
-			self,
+			self.ID: self,
 		},
-		Sources: []signalk.Source{},
 	}
+)
 
-	// Setup HTTP router
-	r := chi.NewRouter()
-	r.Use(middleware.DefaultLogger)
-	r.Get("/signalk/v1/stream", func(w http.ResponseWriter, r *http.Request) {
-		u := newUpgrader()
-		_, err := u.Upgrade(w, r, nil)
-		if err != nil {
-			log.Printf("WS error: %v\n", err)
-			return
-		}
-	})
+func main() {
+	// Seed testdata
+	if err := SeedData(); err != nil {
+		fmt.Fprintf(os.Stderr, "Seeding error: %v\n", err)
+	}
+	// Run server
+	if err := Run(); err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+	}
+}
 
-	baseAPI := "/signalk/v1/api"
-	r.Route(baseAPI, func(r chi.Router) {
-		r.Get("/*", func(w http.ResponseWriter, r *http.Request) {
-			pathStr, _ := strings.CutPrefix(r.URL.String(), baseAPI)
-			path := signalk.CreatePath(strings.Split(pathStr, "/")...)
-			value, err := signalk.NewTraverser(root).Next(path)
-			if err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-				return
-			}
-			json.NewEncoder(w).Encode(value)
-		})
-	})
-
-	r.Get("/delta", func(w http.ResponseWriter, r *http.Request) {
-		delta := signalk.DeltaFormat{
-			Context: signalk.CreatePath("vessels", self.ID.String()),
-			Updates: []signalk.DeltaUpdate{
-				{
-					Timestamp: time.Now(),
-					Values: []signalk.DeltaUpdateObject{
-						{
-							Path:  signalk.CreatePath("navigation", "speedOverGround"),
-							Value: signalk.DataValueFromNumerical(rand.Float64() * 10),
-						},
+func SeedData() error {
+	// Random stuff for testing
+	err := root.ApplyDelta(signalk.Delta{
+		Context: signalk.CreatePath(),
+		Updates: []signalk.DeltaUpdate{
+			{
+				Values: []signalk.DeltaUpdateValues{
+					{
+						Path:  signalk.CreatePath("vessels.self.navigation.position"),
+						Value: []byte(`{"latitude": 15.222, "longitude":3.251}`),
+					},
+					{
+						Path:  signalk.CreatePath("vessels.urn:mrn:imo:mmsi:12345678.navigation.position"),
+						Value: []byte(`{"latitude": 15.222, "longitude":9.221}`),
 					},
 				},
 			},
-		}
-		json.NewEncoder(w).Encode(&delta)
+		},
+	})
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func Run() error {
+	r := chi.NewRouter()
+
+	r.Get("/*", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Add("content-type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(root)
 	})
 
-	http.ListenAndServe(":3000", cors.AllowAll().Handler(r))
-	return nil
+	return http.ListenAndServe(":3000", cors.AllowAll().Handler(r))
 }
