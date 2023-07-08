@@ -2,12 +2,14 @@ package signalk_test
 
 import (
 	"encoding/json"
-	"signalk/signalk"
+	"fmt"
 	"testing"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"signalk/signalk"
 )
 
 func TestFullFormatShouldMarshalToJsonCorrectlySimple(t *testing.T) {
@@ -17,11 +19,13 @@ func TestFullFormatShouldMarshalToJsonCorrectlySimple(t *testing.T) {
 		Version: "1.0",
 		Self:    signalk.CreatePath("vessels", vesselID.String()),
 		Vessels: signalk.VesselList{
-			vesselID: self,
+			self,
 		},
 		Sources: []signalk.Source{},
 	}
-	expectedJSONString := ""
+	expectedJSONString := fmt.Sprintf(
+		`{"version":"1.0","self":"vessels.%s","vessels":{"%s":{"uuid":"%s"}},"sources":{}}`,
+		self.ID.String(), self.ID.String(), self.ID.String())
 
 	fullBytes, err := json.Marshal(&full)
 	require.NoError(t, err)

@@ -2,9 +2,19 @@ package signalk
 
 import (
 	"encoding/json"
+	"errors"
+	"fmt"
+	"strings"
 
 	"github.com/google/uuid"
 )
+
+const (
+	vesselIDUUIDPrefix = "urn:mrn:signalk:uuid:"
+	vesselIDMMSIPrefix = "urn:mrn:imo:mmsi:"
+)
+
+var ErrVesselIDInvalid = errors.New("vessel ID is invalid")
 
 type VesselUUID string
 
@@ -12,7 +22,7 @@ func (id VesselUUID) String() string {
 	if string(id) == "" {
 		return ""
 	}
-	return "urn:mrn:signalk:uuid:" + string(id)
+	return vesselIDUUIDPrefix + string(id)
 }
 
 func (id VesselUUID) MarshalJSON() ([]byte, error) {
@@ -25,7 +35,7 @@ func (id VesselMMSI) String() string {
 	if string(id) == "" {
 		return ""
 	}
-	return "urn:mrn:imo:mmsi:" + string(id)
+	return vesselIDMMSIPrefix + string(id)
 }
 
 func (id VesselMMSI) MarshalJSON() ([]byte, error) {
@@ -35,6 +45,16 @@ func (id VesselMMSI) MarshalJSON() ([]byte, error) {
 type VesselID struct {
 	UUID VesselUUID
 	MMSI VesselMMSI
+}
+
+func VesselIDFromString(str string) (VesselID, error) {
+	if mmsi, hasMMSI := strings.CutPrefix(str, vesselIDMMSIPrefix); hasMMSI {
+		return VesselIDFromMMSI(mmsi), nil
+	}
+	if uuid, hasUUID := strings.CutPrefix(str, vesselIDMMSIPrefix); hasUUID {
+		return VesselIDFromUUIDString(uuid)
+	}
+	return VesselID{}, fmt.Errorf("%w: %s", ErrVesselIDInvalid, str)
 }
 
 func VesselIDFromUUIDString(uuidStr string) (VesselID, error) {

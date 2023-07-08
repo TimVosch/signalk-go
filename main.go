@@ -7,8 +7,10 @@ import (
 	"math/rand"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
+	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"github.com/lesismal/nbio/nbhttp/websocket"
 	"github.com/rs/cors"
@@ -94,10 +96,15 @@ func Run() error {
 	// vessel := signalk.CreateVessel(signalk.VesselIDFromMMSI("123123123"))
 
 	// Add some data to vessel
-	self.Values = append(self.Values, signalk.VesselDataEntry{
-		Path:      signalk.CreatePath("navigation", "speedThroughWater"),
+	self.Values.Add(signalk.CreatePath("navigation.speedThroughWater"), &signalk.VesselDataEntry{
 		Value:     signalk.DataValueFromNumerical(2.94),
 		Timestamp: time.Now(),
+		SourceRef: "testsource",
+	})
+	self.Values.Add(signalk.CreatePath("navigation.courseOverGround"), &signalk.VesselDataEntry{
+		Value:     signalk.DataValueFromNumerical(55),
+		Timestamp: time.Now(),
+		SourceRef: "testsource",
 	})
 
 	// Create root format
@@ -109,28 +116,28 @@ func Run() error {
 		},
 		Sources: []signalk.Source{},
 	}
-	mux := http.NewServeMux()
-	mux.Handle("/signalk/v1/stream", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+	// Setup HTTP router
+	r := chi.NewRouter()
+	r.Get("/signalk/v1/stream", func(w http.ResponseWriter, r *http.Request) {
 		u := newUpgrader()
 		_, err := u.Upgrade(w, r, nil)
 		if err != nil {
 			log.Printf("WS error: %v\n", err)
 			return
 		}
-	}))
-	mux.Handle("/signalk/v1/api/vessels/self/navigation/speedOverGround/meta/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte(`{
-  "meta": {
-    "units": "m/s",
-    "description": "Vessel speed over ground. If converting from AIS 'HIGH' value, set to 102.2 (Ais max value) and add warning in notifications"
-  },
-  "value": 3.51,
-  "$source": "n2k-sample-data.160",
-  "timestamp": "2014-08-15T19:07:40.229Z",
-  "pgn": 129026
-}`))
-	}))
-	mux.Handle("/delta", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	})
+
+	baseAPI := "/signalk/v1/api"
+	r.Route(baseAPI, func(r chi.Router) {
+		r.Get("/*", func(w http.ResponseWriter, r *http.Request) {
+			pathStr, _ := strings.CutPrefix(r.URL.String(), baseAPI)
+			path := signalk.CreatePath(strings.Split(pathStr, "/")...)
+			w.Write([]byte(path.String()))
+		})
+	})
+
+	r.Get("/delta", func(w http.ResponseWriter, r *http.Request) {
 		delta := signalk.DeltaFormat{
 			Context: signalk.CreatePath("vessels", self.ID.String()),
 			Updates: []signalk.DeltaUpdate{
@@ -146,10 +153,12 @@ func Run() error {
 			},
 		}
 		json.NewEncoder(w).Encode(&delta)
-	}))
-	mux.Handle("/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	})
+
+	r.Handle("/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(&root)
 	}))
-	http.ListenAndServe(":3002", cors.AllowAll().Handler(mux))
+
+	http.ListenAndServe(":3000", cors.AllowAll().Handler(r))
 	return nil
 }

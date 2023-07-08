@@ -1,68 +1,30 @@
 package signalk
 
-import (
-	"encoding/json"
-	"time"
-)
+import "github.com/Jeffail/gabs/v2"
 
 type Vessel struct {
-	ID     VesselID   `json:"-"`
-	Name   string     `json:"name,omitempty"`
-	UUID   VesselUUID `json:"uuid,omitempty"`
-	MMSI   VesselMMSI `json:"mmsi,omitempty"`
-	Values VesselData `json:".,omitempty"`
+	ID     VesselID       `json:"-"`
+	Name   string         `json:"name,omitempty"`
+	UUID   VesselUUID     `json:"uuid,omitempty"`
+	MMSI   VesselMMSI     `json:"mmsi,omitempty"`
+	Values VesselDataTree `json:"-"`
 }
 
 func (v Vessel) MarshalJSON() ([]byte, error) {
-	m := make(map[string]any)
+	obj := gabs.New()
 	if v.Name != "" {
-		m["name"] = v.Name
+		obj.Set(v.Name, "name")
 	}
 	if v.UUID != "" {
-		m["uuid"] = v.UUID
+		obj.Set(v.UUID, "uuid")
 	}
 	if v.MMSI != "" {
-		m["mmsi"] = v.MMSI
+		obj.Set(v.MMSI, "mmsi")
 	}
-	v.Values.encodeToMap(m)
-	return json.Marshal(m)
-}
-
-type VesselData []VesselDataEntry
-
-func (vd VesselData) encodeToMap(m map[string]any) {
-	setPath := func(path Path, v any) {
-		tmp := m
-		parts := path.Parts()
-		for _, part := range parts[:len(parts)-2] {
-			partMap, ok := tmp[part]
-			if !ok {
-				partMap = map[string]any{}
-			}
-			tmp[part] = partMap
-		}
-		tmp[parts[len(parts)-1]] = v
+	for path, dataEntry := range v.Values.Flatten() {
+		obj.SetP(dataEntry, path)
 	}
-
-	for _, entry := range vd {
-		setPath(entry.Path, entry)
-	}
-}
-
-func (vd VesselData) MarshalJSON() ([]byte, error) {
-	m := make(map[string]any)
-	vd.encodeToMap(m)
-	return json.Marshal(m)
-}
-
-type VesselDataEntry struct {
-	Path      Path      `json:"-"`
-	SourceRef string    `json:"$source,omitempty"`
-	Value     DataValue `json:"value,omitempty"`
-	Timestamp time.Time `json:"timestamp,omitempty"`
-
-	// Optional used if there are multiple sources generating this value
-	Values map[string]VesselData `json:"values,omitempty"`
+	return obj.MarshalJSON()
 }
 
 func CreateVessel(id VesselID) Vessel {
@@ -71,6 +33,6 @@ func CreateVessel(id VesselID) Vessel {
 		ID:     id,
 		UUID:   id.UUID,
 		MMSI:   id.MMSI,
-		Values: VesselData{},
+		Values: NewVesselDataTree(),
 	}
 }
