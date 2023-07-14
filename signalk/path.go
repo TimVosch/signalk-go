@@ -37,6 +37,10 @@ func (path Path) Prepend(other Path) Path {
 	return append(other, path...)
 }
 
+func (path Path) Add(part string) Path {
+	return append(path, part)
+}
+
 func (path Path) FirstOut() (Path, Path) {
 	if path.IsEmpty() {
 		return Path{}, Path{}

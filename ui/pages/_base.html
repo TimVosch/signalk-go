@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <title>SignalK</title>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <script src="https://cdn.tailwindcss.com"></script>
+    </head>
+    <body>
+        <nav class="flex justify-between lg:w-[960px] mx-auto">
+            <ul class="flex lg:-ml-4">
+                <li><a href="/" class="block p-4 font-bold text-xl">SignalK</a></li>
+            </ul>
+            <ul class="flex lg:-mr-4">
+                <li><a href="/" class="block p-4">Sources</a></li>
+                <li><a href="/" class="block p-4">Settings</a></li>
+            </ul>
+        </nav>
+        <main class="lg:w-[960px] mx-auto mt-8 flex flex-col gap-y-16">
+        {{ template "main" . }}
+        </main>
+    </body>
+</html>

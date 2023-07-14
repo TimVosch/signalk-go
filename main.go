@@ -7,10 +7,13 @@ import (
 	"os"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
 	"github.com/google/uuid"
 	"github.com/rs/cors"
 
+	"signalk/api"
 	"signalk/signalk"
+	"signalk/ui"
 )
 
 var (
@@ -63,13 +66,19 @@ func SeedData() error {
 }
 
 func Run() error {
+	uiServer := ui.NewServer()
+	apiTransport := api.NewServer()
+	// Setup HTTP router
 	r := chi.NewRouter()
-
-	r.Get("/*", func(w http.ResponseWriter, r *http.Request) {
+	r.Use(middleware.DefaultLogger)
+	r.Get("/signalk/api/v1", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Add("content-type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		json.NewEncoder(w).Encode(root)
 	})
+	r.Mount("/api", apiTransport)
+	r.Mount("/", uiServer)
 
-	return http.ListenAndServe(":3000", cors.AllowAll().Handler(r))
+	http.ListenAndServe(":3000", cors.AllowAll().Handler(r))
+	return nil
 }
