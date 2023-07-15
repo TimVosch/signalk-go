@@ -12,7 +12,7 @@ import (
 )
 
 func TestTreeSerializes(t *testing.T) {
-	root := tree.CreateTree()
+	root := tree.Create()
 	err := root.Set(tree.CreatePath("a.b.c"), "1")
 	require.NoError(t, err)
 	err = root.Set(tree.CreatePath("a.b.d"), "2")

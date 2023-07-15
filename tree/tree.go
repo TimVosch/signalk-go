@@ -48,6 +48,12 @@ type (
 	}
 )
 
+func CreateLeaf[T any](v T) *Leaf[T] {
+	return &Leaf[T]{
+		value: v,
+	}
+}
+
 func (branch *Branch) Parent() Node {
 	return branch.parent
 }

@@ -1,6 +1,8 @@
 package signalk
 
 import (
+	"errors"
+
 	"github.com/Jeffail/gabs/v2"
 
 	"signalk/tree"
@@ -17,39 +19,57 @@ type RootNode struct {
 	shore   tree.Node
 }
 
+func createRootNode() *RootNode {
+	return &RootNode{
+		version: "1.0.0",
+	}
+}
+
 func (root RootNode) MarshalJSON() ([]byte, error) {
 	obj := gabs.New()
+	obj.Set(root.version, "version")
 	return obj.MarshalJSON()
 }
 
 func (r *RootNode) Parent() tree.Node {
-	panic("not implemented") // TODO: Implement
+	return nil
 }
 
 func (r *RootNode) SetParent(_ tree.Node) {
-	panic("not implemented") // TODO: Implement
+	// Do nothing
 }
 
 func (r *RootNode) Key() string {
-	panic("not implemented") // TODO: Implement
+	return ""
 }
 
 func (r *RootNode) Path() tree.Path {
-	panic("not implemented") // TODO: Implement
+	return tree.CreatePath()
 }
 
 func (r *RootNode) GetChild(key string) (tree.Node, error) {
-	panic("not implemented") // TODO: Implement
+	switch key {
+	case "vessels":
+		return r.vessels, nil
+	case "sources":
+		return r.sources, nil
+	case "version":
+		// TODO: Should ?
+		return tree.CreateLeaf(r.version), nil
+	case "atons":
+		return r.atons, nil
+	}
+	return nil, errors.New("error!")
 }
 
 func (r *RootNode) SetValue(v any) error {
-	panic("not implemented") // TODO: Implement
+	return errors.New("root is not leaf")
 }
 
 func (r *RootNode) GetValue() any {
-	panic("not implemented") // TODO: Implement
+	return errors.New("root is not leaf")
 }
 
 func (r *RootNode) AddChild(node tree.Node) error {
-	panic("not implemented") // TODO: Implement
+	return errors.New("no children allowed")
 }

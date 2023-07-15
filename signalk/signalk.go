@@ -7,6 +7,6 @@ type Service struct {
 }
 
 func NewService() *Service {
-	root := tree.CreateWith(rootNode)
+	root := tree.CreateWith(createRootNode)
 	return &Service{}
 }
