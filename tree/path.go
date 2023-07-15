@@ -1,4 +1,4 @@
-package signalk
+package tree
 
 import (
 	"encoding/json"

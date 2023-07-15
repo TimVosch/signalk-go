@@ -1,4 +1,4 @@
-package signalk
+package tree
 
 import (
 	"encoding/json"
@@ -138,16 +138,20 @@ func (leaf Leaf[T]) MarshalJSON() ([]byte, error) {
 }
 
 type Tree struct {
-	root *Branch
+	root Node
 }
 
 func (tree Tree) MarshalJSON() ([]byte, error) {
-	return json.Marshal(tree.root.value)
+	return json.Marshal(tree.root.GetValue())
 }
 
-func CreateTree() *Tree {
+func Create() *Tree {
+	return CreateWith(&Branch{key: "", value: make(NodeGroup)})
+}
+
+func CreateWith(node Node) *Tree {
 	return &Tree{
-		root: &Branch{key: "", value: make(NodeGroup)},
+		root: node,
 	}
 }
 
@@ -163,6 +167,9 @@ func (tree *Tree) get(path Path, create bool) (Node, error) {
 	node, err = tree.root.GetChild(next.String())
 	if errors.Is(err, errChildNotFound) {
 		fmt.Printf("Root is missing key: %v\n", next)
+		if create {
+			return tree.buildAndGet(tree.root, next.Append(rest))
+		}
 		return nil, errChildNotFound
 	}
 	if err != nil {
@@ -235,82 +242,10 @@ func (tree *Tree) buildAndGet(node Node, path Path) (Node, error) {
 	}
 }
 
-func (tree *Tree) Set(pathStr string, value any) error {
-	path := CreatePath(pathStr)
-
-	var err error
-	var node Node
-
-	next, rest := path.FirstOut()
-	node, err = tree.root.GetChild(next.String())
-	if errors.Is(err, errChildNotFound) {
-		fmt.Printf("Root is missing key: %v\n", next)
-		return tree.buildAndSetValue(tree.root, next.Append(rest), value)
-		return errors.New("path not found on root node, root node cannot have new values")
-	}
+func (tree *Tree) Set(path Path, value any) error {
+	node, err := tree.get(path, true)
 	if err != nil {
-		fmt.Printf("Root error: %v\n", err)
 		return err
 	}
-
-	fmt.Printf("Root found\n")
-	for !rest.IsEmpty() {
-		next, rest = rest.FirstOut()
-		nextNode, err := node.GetChild(next.String())
-		if errors.Is(err, errChildNotFound) {
-			fmt.Printf("Missing %s on %s\n", next, node.Key())
-			return tree.buildAndSetValue(node, next.Append(rest), value)
-		}
-		// If there is more path, then keep traversing
-		if !rest.IsEmpty() {
-			fmt.Printf("More to come\n")
-			node = nextNode
-			continue
-		}
-		// Otherwise we should be at a leaf and set its value
-		fmt.Printf("done, setting value \n")
-		return nextNode.SetValue(value)
-	}
-	return nil
-}
-
-func (tree *Tree) buildAndSetValue(node Node, path Path, value any) error {
-	fmt.Printf("buildAndSet for %s, for path %s\n", node.Key(), path)
-	var newNode Node
-	var err error
-
-	next, rest := path.FirstOut()
-	for {
-		// Create a new node, leaf if last path of the path, otherwise branch
-		if rest.IsEmpty() {
-			fmt.Printf("Building leaf node: %s\n", next)
-			newNode = &Leaf[any]{
-				key:    next.String(),
-				parent: node,
-				value:  value,
-			}
-		} else {
-			fmt.Printf("Building branch node: %s\n", next)
-			newNode = &Branch{
-				key:    next.String(),
-				parent: node,
-				value:  NodeGroup{},
-			}
-		}
-
-		// Append new node to branch
-		fmt.Printf("Adding %s to %s\n", newNode.Key(), node.Key())
-		err = node.AddChild(newNode)
-		if err != nil {
-			return err
-		}
-		// If this is the last key (thus a leaf) stop traversing
-		if rest.IsEmpty() {
-			fmt.Printf("was last node, quitting: %s\n", next)
-			return nil
-		}
-		// otherwise make our newNode our main node and traverse a step further
-		node = newNode
-		next, rest = rest.FirstOut()
-	}
+	return node.SetValue(value)
 }
