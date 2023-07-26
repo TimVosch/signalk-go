@@ -3,6 +3,8 @@ package signalk
 import (
 	"errors"
 	"time"
+
+	"signalk/tree"
 )
 
 var (
@@ -11,7 +13,7 @@ var (
 )
 
 type Delta struct {
-	Context Path
+	Context tree.Path
 	Updates []DeltaUpdate
 }
 
@@ -23,10 +25,10 @@ type DeltaUpdate struct {
 	Meta      []DeltaUpdateMeta
 }
 type DeltaUpdateValues struct {
-	Path  Path
+	Path  tree.Path
 	Value any
 }
 type DeltaUpdateMeta struct {
-	Path  Path
+	Path  tree.Path
 	Value any
 }

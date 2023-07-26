@@ -2,6 +2,7 @@ package signalk
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/Jeffail/gabs/v2"
 
@@ -10,10 +11,12 @@ import (
 
 var _ tree.Node = (*RootNode)(nil)
 
+var ErrPathInvalid = errors.New("path invalid")
+
 type RootNode struct {
 	self    tree.Path
 	version string
-	vessels tree.Node
+	vessels vesselListNode
 	sources tree.Node
 	atons   tree.Node
 	shore   tree.Node
@@ -22,12 +25,14 @@ type RootNode struct {
 func createRootNode() *RootNode {
 	return &RootNode{
 		version: "1.0.0",
+		vessels: createVesselListNode(),
 	}
 }
 
 func (root RootNode) MarshalJSON() ([]byte, error) {
 	obj := gabs.New()
 	obj.Set(root.version, "version")
+	obj.Set(root.vessels, "vessels")
 	return obj.MarshalJSON()
 }
 
@@ -59,7 +64,7 @@ func (r *RootNode) GetChild(key string) (tree.Node, error) {
 	case "atons":
 		return r.atons, nil
 	}
-	return nil, errors.New("error!")
+	return nil, fmt.Errorf("%w: child %s does not exist", ErrPathInvalid, key)
 }
 
 func (r *RootNode) SetValue(v any) error {

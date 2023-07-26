@@ -162,6 +162,9 @@ func CreateWith(node Node) *Tree {
 }
 
 func (tree *Tree) Get(path Path) (Node, error) {
+	if path.IsEmpty() {
+		return tree.root, nil
+	}
 	return tree.get(path, false)
 }
 

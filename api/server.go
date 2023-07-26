@@ -3,17 +3,23 @@ package api
 import (
 	"encoding/json"
 	"net/http"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
+
+	"signalk/signalk"
+	"signalk/tree"
 )
 
 type Server struct {
-	r chi.Router
+	r   chi.Router
+	svc *signalk.Service
 }
 
-func NewServer() *Server {
+func NewServer(svc *signalk.Service) *Server {
 	srv := &Server{
-		r: chi.NewRouter(),
+		r:   chi.NewRouter(),
+		svc: svc,
 	}
 	srv.setupRoutes()
 
@@ -33,8 +39,21 @@ func (s *Server) setupRoutes() {
 	r := s.r
 	r.Get("/", s.httpGetGeneralInformation())
 	r.Route("/v1/api", func(r chi.Router) {
-		r.Get("/", func(w http.ResponseWriter, r *http.Request) {})
+		r.Get("/*", s.httpTraverseRoot())
 	})
+}
+
+func (s *Server) httpTraverseRoot() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		urlPath := chi.RouteContext(r.Context()).RoutePath
+		path := tree.CreatePath(strings.Split(urlPath, "/")...)
+		value, err := s.svc.GetPath(path)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		Send(w, value)
+	}
 }
 
 func (s *Server) httpGetGeneralInformation() http.HandlerFunc {

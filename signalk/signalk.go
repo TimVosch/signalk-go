@@ -7,6 +7,12 @@ type Service struct {
 }
 
 func NewService() *Service {
-	root := tree.CreateWith(createRootNode)
-	return &Service{}
+	root := tree.CreateWith(createRootNode())
+	return &Service{
+		root: root,
+	}
+}
+
+func (s *Service) GetPath(path tree.Path) (tree.Node, error) {
+	return s.root.Get(path)
 }
