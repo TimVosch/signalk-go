@@ -28,7 +28,10 @@ func NewServer(svc *signalk.Service) *Server {
 
 func Send(w http.ResponseWriter, v any) {
 	w.Header().Set("content-type", "application/json")
-	json.NewEncoder(w).Encode(v)
+	err := json.NewEncoder(w).Encode(v)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
 }
 
 func (s Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
