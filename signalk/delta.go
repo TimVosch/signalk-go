@@ -13,22 +13,22 @@ var (
 )
 
 type Delta struct {
-	Context tree.Path
-	Updates []DeltaUpdate
+	Context tree.Path     `json:"context"`
+	Updates []DeltaUpdate `json:"updates"`
 }
 
 type DeltaUpdate struct {
-	Source    string
-	SourceRef string
-	Timestamp time.Time
-	Values    []DeltaUpdateValues
-	Meta      []DeltaUpdateMeta
+	Source    string       `json:"source"`
+	SourceRef string       `json:"source_ref"`
+	Timestamp time.Time    `json:"timestamp"`
+	Values    []DeltaValue `json:"values"`
+	Meta      []DeltaMeta  `json:"meta"`
 }
-type DeltaUpdateValues struct {
-	Path  tree.Path
-	Value any
+type DeltaValue struct {
+	Path  tree.Path `json:"path"`
+	Value any       `json:"value"`
 }
-type DeltaUpdateMeta struct {
-	Path  tree.Path
-	Value any
+type DeltaMeta struct {
+	Path  tree.Path `json:"path"`
+	Value any       `json:"value"`
 }
